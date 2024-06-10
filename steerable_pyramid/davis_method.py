@@ -181,10 +181,10 @@ def vmSoundFromVideo(video, nscalesin, norientationsin, framerate):
     ampsigs = np.zeros((nScales, nOrients, nF))
 
     for q in range(nF):
-        # if np.mod(q+1, np.floor(nF/100))==1:
-        #     progress = (q+1)/nF
-        #     currentTime = time.time()
-            # print(f'Progress: {progress*100}% done after {currentTime-startTime} seconds.')
+        if np.mod(q+1, np.floor(nF/100))==1:
+            progress = (q+1)/nF
+            currentTime = time.time()
+            print(f'Progress: {progress*100}% done after {currentTime-startTime} seconds.')
         
         vframein = video[q]
         im = vframein
