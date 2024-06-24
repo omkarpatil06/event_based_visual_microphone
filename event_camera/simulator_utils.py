@@ -34,7 +34,7 @@ def compute_event_map(diff_frame, pos_thresh, neg_thresh):
     # print(f'Max difference any pixel: {max(diff_frame.max(), diff_frame.max())}')
     pos_evts_frame = torch.div(pos_frame, pos_thresh, rounding_mode='floor').type(torch.int32)
     neg_evts_frame = torch.div(neg_frame, neg_thresh, rounding_mode='floor').type(torch.int32)
-    print(f'Max events any pixel: {max(pos_evts_frame.max(), neg_evts_frame.max())}')
+    #print(f'HELLO!: Max events any pixel: {max(pos_evts_frame.max(), neg_evts_frame.max())}')
     return pos_evts_frame, neg_evts_frame
 
 #################################################################

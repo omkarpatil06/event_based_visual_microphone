@@ -9,7 +9,7 @@ import sounddevice as sd
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.signal import butter, filtfilt
-import utilities.spectrogram as metrics
+import utilities.utility_spectrogram as metrics
 
 #################################################################
 # rcosFn.m : raised cosine filter
@@ -207,7 +207,11 @@ def vmSoundFromVideo(video, nscalesin, norientationsin, framerate):
                 sumamp = np.sum(np.abs(amp))
                 ampsigs[j, k, q] = sumamp
 
-                signalffs[j, k, q] = np.mean(phasew.ravel())/sumamp
+                mean_phasew = np.mean(phasew.ravel())
+                if sumamp == 0 or not np.isfinite(sumamp):
+                     signalffs[j, k, q] = 0
+                else:
+                    signalffs[j, k, q] = mean_phasew/sumamp
     
     sigOut = np.zeros(nF)
     for q in range(nScales):
@@ -229,6 +233,10 @@ def vmSoundFromVideo(video, nscalesin, norientationsin, framerate):
         offset = newmx-1.0
         S_x = S_x-offset
     
+    if not np.isfinite(sigOut).all():
+        sigOut = np.nan_to_num(sigOut)
+    if not np.isfinite(S_x).all():
+        S_x = np.nan_to_num(S_x) 
     metrics.show_spectrogram(sigOut, samplingrate, 80, 40, 'Unfiltered')
     metrics.show_spectrogram(S_x, samplingrate, 80, 40, 'Filtered')
 
