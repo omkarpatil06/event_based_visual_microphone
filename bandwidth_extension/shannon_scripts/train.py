@@ -9,8 +9,8 @@ y_train = np.load(label_dataset_path)
 X_train = X_train[:, :, np.newaxis]
 y_train = y_train[:, :, np.newaxis]
 
-audio_unet = au.AudioUNet(input_shape=(4096, 1), block_size=6)
+audio_unet = au.AudioUNet(input_shape=(4096, 1), block_size=5)
 audio_unet.show()
 audio_unet.compile(learning_rate=5*10e-4)
-audio_unet.fit(X_train, y_train, batch_size=16, epochs=200)
-audio_unet.save('model_6l.h5')
+audio_unet.fit(X_train, y_train, batch_size=32, epochs=500)
+audio_unet.save('model_5l_v2.h5')
