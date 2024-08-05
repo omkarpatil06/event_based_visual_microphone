@@ -34,7 +34,7 @@ def compute_event_map(diff_frame, pos_thresh, neg_thresh):
     # print(f'Max difference any pixel: {max(diff_frame.max(), diff_frame.max())}')
     pos_evts_frame = torch.div(pos_frame, pos_thresh, rounding_mode='floor').type(torch.int32)
     neg_evts_frame = torch.div(neg_frame, neg_thresh, rounding_mode='floor').type(torch.int32)
-    #print(f'HELLO!: Max events any pixel: {max(pos_evts_frame.max(), neg_evts_frame.max())}')
+    print(f'HELLO!: Max events any pixel: {max(pos_evts_frame.max(), neg_evts_frame.max())}')
     return pos_evts_frame, neg_evts_frame
 
 #################################################################
@@ -144,6 +144,32 @@ def save_video_from_tensor(tensor, output_path, fps=90):
         frame = tensor[i]
         out.write(frame)
     out.release()
+
+def save_video(save_vid, video_save_path, fps):
+    if save_vid:
+        desktop_path = os.path.join(os.path.expanduser("~"), "Documents")
+        folder_path = os.path.join(desktop_path, 'TemporaryEventVideoSegments')
+        video_files = None
+        for _, _, files in os.walk(folder_path):
+            video_files = [file for file in files if not file.startswith('.')]
+            break
+        video_files.sort(key=extract_number)
+        num_files = len(video_files)
+
+        segment_count = 0
+        video = None
+        for file in video_files:
+            segment_count += 1
+            file_path = os.path.join(folder_path, file)
+            frames = np.load(file_path)
+            if segment_count == 1:
+                print(frames.shape)
+                video = frames
+            else:
+                video = np.vstack((video, frames))
+            print(f"Converted and saved segment {segment_count}/{num_files} to Documents.")
+        save_video_from_tensor(video, video_save_path, fps)
+        
 
 #################################################################
 # EVENT FRAMES TO LIST CONVERSION UTILITY FUNCTIONS

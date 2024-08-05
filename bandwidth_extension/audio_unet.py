@@ -21,7 +21,7 @@ class SubPixelShift(layers.Layer):
 # AUDIO UNET MODEL CODE
 ##########################################################
 class AudioUNet:
-    def __init__(self, input_shape=(4096, 1), block_size=4):
+    def __init__(self, input_shape=(4096, 1), block_size=5):
         self.input_shape = input_shape
         self.block_size = block_size
 
