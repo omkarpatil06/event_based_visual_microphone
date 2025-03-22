@@ -17,21 +17,21 @@ import utilities.utility_spectrogram as metrics
 def rcosFn(width, position, values):
     sz = 256
     X = np.pi * np.arange(-sz-1, 2, 1) / (2*sz)
-    Y = values[0] + (values[1]-values[0]) * np.cos(X)**2
-    Y[0] = Y[1]
-    Y[sz+2] = Y[sz+1]
-    X = position + (2*width/np.pi) * (X + np.pi/4)
-    return X, Y
+    Yrcos = values[0] + (values[1]-values[0]) * np.cos(X)**2
+    Yrcos[0] = Yrcos[1]
+    Yrcos[sz+2] = Yrcos[sz+1]
+    Xrcos = position + (2*width/np.pi) * (X + np.pi/4)
+    return Xrcos, Yrcos
 
 #################################################################
 # pointOp.m : interpolation function
 #################################################################
 def pointOp(im, lut, origin, increment):
+    Y = lut
     size = lut.shape[0]
     X = origin + increment*np.arange(0, size, 1)
-    Y = lut
     interp_func = interp1d(X, Y, kind='linear', fill_value='extrapolate')
-    res = interp_func(im.flatten())
+    res = interp_func(im.flatten()).astype(np.complex64)
     return res.reshape(im.shape)
 
 #################################################################
@@ -40,11 +40,11 @@ def pointOp(im, lut, origin, increment):
 def buildSCFpyrLevs(lodft, log_rad, Xrcos, Yrcos, angle, ht, nbands):
     if ht <= 0:
         lo0 = np.fft.ifft2(np.fft.ifftshift(lodft))
-        pyr = np.real(lo0).flatten()
+        pyr = np.real(lo0).flatten().astype(np.complex64)
         pind = lo0.shape
         return pyr, pind
     else:
-        bands = np.zeros((np.prod(lodft.shape), nbands))
+        bands = np.zeros((np.prod(lodft.shape), nbands)).astype(np.complex64)
         bind = np.zeros((nbands, 2))
 
         Xrcos = Xrcos - np.log2(2)
@@ -62,7 +62,7 @@ def buildSCFpyrLevs(lodft, log_rad, Xrcos, Yrcos, angle, ht, nbands):
             b = b+1
             anglemask = pointOp(angle, Ycosn, Xcosn[0]+np.pi*(b-1)/nbands, Xcosn[1]-Xcosn[0])
             banddft = ((-1j)**(nbands-1))*lodft*anglemask*himask
-            band = np.fft.ifft2(np.fft.ifftshift(banddft))
+            band = np.fft.ifft2(np.fft.ifftshift(banddft)).astype(np.complex64)
 
             bands[:, (b-1)] = band.flatten()
             bind[(b-1), :] = np.array(band.shape)
@@ -83,7 +83,7 @@ def buildSCFpyrLevs(lodft, log_rad, Xrcos, Yrcos, angle, ht, nbands):
         lodft = lomask*lodft
 
         npyr, nind = buildSCFpyrLevs(lodft, log_rad, Xrcos, Yrcos, angle, ht-1, nbands)
-        pyr = np.concatenate((bands.flatten(), npyr))
+        pyr = np.concatenate((bands.flatten(order='F'), npyr))
         pind = np.vstack((bind, nind))
         return pyr, pind
 
@@ -119,20 +119,20 @@ def buildSCFpyr(im, ht, order):
     hi0dft = imdft*hi0mask
     hi0 = np.fft.ifft2(np.fft.ifftshift(hi0dft))
 
-    real_hi0_flat = np.real(hi0).flatten()
+    real_hi0_flat = np.real(hi0).flatten().astype(np.complex64)
     pyr = np.concatenate((real_hi0_flat, pyr))
     hi0_size = np.array(hi0.shape)
     pind = np.vstack((hi0_size, pind))
-    return pyr, pind
+    return pyr.astype(np.complex64), pind
 
 #################################################################
 # pyrBandIndices.m : find indices to extract pyramid output
 #################################################################
 def pyrBandIndices(pind, band):
-    ind = 1
+    ind = 0
     for l in range(band-1):
-        ind = ind + np.prod(pind[l-1, :])
-    indices = np.arange(ind, ind+np.prod(pind[band-1, :])).astype(int)
+        ind = ind + np.prod(pind[l, :])
+    indices = np.arange(ind, ind+np.prod(pind[band, :])).astype(int)
     return indices
 
 #################################################################
@@ -141,7 +141,7 @@ def pyrBandIndices(pind, band):
 def pyrBand(pyr, pind, band):
     indices = pyrBandIndices(pind, band)
     band_data = pyr[indices]
-    res = band_data.reshape((int(pind[band - 1, 0]), int(pind[band - 1, 1])))
+    res = band_data.reshape((int(pind[band, 0]), int(pind[band, 1])))
     return res
 
 #################################################################
@@ -198,7 +198,7 @@ def vmSoundFromVideo(video, nscalesin, norientationsin, framerate):
             curH = pind[bandIdx-1, 0]
             curW = pind[bandIdx-1, 1]
             for k in range(nOrients):
-                bandIdx = 1 + (j)*nOrients + (k+1)
+                bandIdx = 1 + (j)*nOrients + k
                 amp = pyrBand(pyrAmp, pind, bandIdx)
                 phase = pyrBand(pyrDeltaPhase, pind, bandIdx)
                 

@@ -93,28 +93,32 @@ def get_video_info(video_path):
     }
 
 def video_window(video_path, save_path, width, height, window_dim):
-    # Define the path to the input and output video
-    input_video_path = video_path
-    output_video_path = save_path
-
     # Open the input video file
-    cap = cv2.VideoCapture(input_video_path)
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("Error: Could not open video.")
-        exit()
+        print(f"Error: Could not open video file {video_path}.")
+        return
+
+    # Get frame properties
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    # Define the window coordinates (top-left corner x, y) and dimensions (width, height)
-    x, y, w, h = width, height, window_dim[0], window_dim[1]  # Example coordinates and dimensions
+    # Define the window coordinates and dimensions
+    x, y, w, h = width, height, window_dim[0], window_dim[1]
     if x + w > frame_width or y + h > frame_height:
-        print("Error: Window dimensions exceed frame size.")
-        exit()
+        print(f"Error: Window dimensions exceed frame size for file {video_path}.")
+        return
 
     # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # You might need to change this depending on your system
+    out = cv2.VideoWriter(save_path, fourcc, fps, (w, h))
+
+    if not out.isOpened():
+        print(f"Error: Could not open video writer for file {save_path}.")
+        cap.release()
+        return
+
     frame_count = 0
     while cap.isOpened():
         ret, frame = cap.read()
@@ -123,6 +127,8 @@ def video_window(video_path, save_path, width, height, window_dim):
         window = frame[y:y+h, x:x+w]
         out.write(window)
         frame_count += 1
+
+    # Release resources
     cap.release()
     out.release()
-    print(f"Extracted {frame_count} frames and saved to '{output_video_path}'")
+    print(f"Extracted {frame_count} frames and saved to '{save_path}'.")

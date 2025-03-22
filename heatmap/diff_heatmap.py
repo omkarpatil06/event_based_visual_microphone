@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from heapq import heappush, heappushpop
 
 #################################################################
 # code for pre-processing video
@@ -103,7 +102,6 @@ def find_roi(heatmap, title, region_size = (30, 30)):
     plt.show()
     return top_left_coordinates
 
-
 def find_top_n_rois(heatmap, title, region_size=(30, 30), top_n=3, min_distance=30):
     def is_too_close(new_roi, existing_rois, min_dist):
         new_y, new_x = new_roi
@@ -143,6 +141,50 @@ def find_top_n_rois(heatmap, title, region_size=(30, 30), top_n=3, min_distance=
     plt.title(f"Top {top_n} Brightest and Separated Regions for {title}")
     plt.show()
     return [(i, j) for _, (i, j) in selected_rois]
+
+def find_top_n_lowest_rois(heatmap, title, region_size=(30, 30), top_n=3, min_distance=30):
+    def is_too_close(new_roi, existing_rois, min_dist):
+        new_y, new_x = new_roi
+        for _, (ey, ex) in existing_rois:
+            if np.sqrt((new_y - ey)**2 + (new_x - ex)**2) < min_dist:
+                return True
+        return False
+
+    matrix = np.array(heatmap)
+    rows, cols = matrix.shape
+    region_rows, region_cols = region_size
+
+    # initializing before search
+    regions = []
+
+    # start search to sum pixel values in each region
+    for i in range(rows - region_rows + 1):
+        for j in range(cols - region_cols + 1):
+            current_sum = np.sum(matrix[i: i + region_rows, j: j + region_cols])
+            regions.append((current_sum, (i, j)))
+
+    # Sort regions by ascending sum to get the lowest regions
+    regions.sort(key=lambda x: x[0])
+
+    selected_rois = []
+    for current_sum, (i, j) in regions:
+        if len(selected_rois) < top_n:
+            if not is_too_close((i, j), selected_rois, min_distance):
+                selected_rois.append((current_sum, (i, j)))
+            if len(selected_rois) == top_n:
+                break
+
+    # display results
+    plt.imshow(matrix, cmap='viridis', interpolation='none')
+    plt.colorbar()
+    for score, (i, j) in selected_rois:
+        rect = plt.Rectangle((j, i), region_cols, region_rows, edgecolor='red', facecolor='none', linewidth=2)
+        plt.gca().add_patch(rect)
+    plt.title(f"Top {top_n} Lowest and Separated Regions for {title}")
+    plt.show()
+    
+    return [(i, j) for _, (i, j) in selected_rois]
+
 
 #################################################################
 # code for difference frame calculations
@@ -212,6 +254,45 @@ def video_avg_difference_frame(video_path, threshold):
     cap.release()
     motion_energy_normalised = cv2.normalize(motion_energy_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     return motion_energy_normalised
+
+def threshold_video(video_path, save_path, threshold):
+    # create cv2 video read object and read first frame
+    frame_count = 0
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None
+    ret, first_frame = cap.read()
+    if not ret:
+        cap.release()
+        return None
+    gray_frame_prev = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+
+    # cv2 process parameters
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # create cv2 video write object
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    cap_out = cv2.VideoWriter(save_path, fourcc, fps, (width, height), isColor=False)
+
+    # calculate motion for rest of the frames
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        difference_frame = cv2.absdiff(gray_frame_prev, gray_frame)
+        _, thresh_frame = cv2.threshold(difference_frame, threshold, 255, cv2.THRESH_BINARY)
+        cap_out.write(thresh_frame)
+
+        # update for next step
+        frame_count += 1
+        gray_frame_prev = gray_frame
+        if frame_count % 1000 == 0:
+            print(f"Total frames processed for average difference frame: {frame_count}")
+    cap.release()
+    cap_out.release() 
 
 def calculate_zero_crossings(video_path):
     # create cv2 video read object
